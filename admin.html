@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة | M-R Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            background: #0f172a; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            padding-bottom: 80px; 
+        }
+        .glass-panel { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+        }
+        .neon-text { text-shadow: 0 0 10px #00d2ff; }
+        .neon-border { border-bottom: 2px solid #00d2ff; }
+        .btn-active:active { transform: scale(0.95); }
+        
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #00d2ff; border-radius: 10px; }
+        
+        input, textarea { 
+            background: rgba(15, 23, 42, 0.8) !important; 
+            border: 1px solid rgba(0, 210, 255, 0.2) !important; 
+            color: white !important; 
+        }
+        input:focus, textarea:focus {
+            border-color: #00d2ff !important;
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 min-h-screen">
+
+    <header class="sticky top-0 z-50 glass-panel p-4 mb-6 border-b border-slate-700 text-center">
+        <h1 class="text-xl font-bold neon-text">لوحة إدارة احمد البنا</h1>
+    </header>
+
+    <main class="container mx-auto px-4 space-y-8">
+        
+        <section class="glass-panel p-6 rounded-2xl shadow-2xl border border-cyan-500/20">
+            <div class="flex items-center mb-6 space-x-2 space-x-reverse">
+                <span class="p-2 bg-cyan-500/20 rounded-lg">✍️</span>
+                <h2 id="form-title" class="text-lg font-semibold text-cyan-400">إضافة محتوى جديد</h2>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="hidden" id="post-id">
+                <input type="text" id="title" placeholder="عنوان الموضوع..." 
+                    class="w-full p-4 rounded-xl outline-none transition-all">
+                
+                <input type="text" id="summary" placeholder="وصف قصير ..." 
+                    class="w-full p-4 rounded-xl outline-none transition-all">
+                
+                <textarea id="content" rows="4" placeholder="اكتب المحتوى الكامل هنا..." 
+                    class="w-full p-4 rounded-xl outline-none transition-all"></textarea>
+                
+                <div class="flex gap-3">
+                    <button onclick="publishPost()" id="submit-btn" 
+                        class="btn-active flex-1 py-4 bg-gradient-to-r from-cyan-600 to-blue-700 rounded-xl font-bold text-white shadow-lg shadow-cyan-900/40">
+                        نشر الآن 🚀
+                    </button>
+                    <button onclick="cancelEdit()" id="cancel-btn" class="hidden px-6 py-4 bg-slate-700 text-gray-300 rounded-xl font-bold hover:bg-slate-600 transition">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-panel p-6 rounded-2xl shadow-xl">
+            <div class="flex items-center mb-6 space-x-2 space-x-reverse">
+                <span class="p-2 bg-purple-500/20 rounded-lg">📂</span>
+                <h2 class="text-lg font-semibold text-purple-400">إدارة المنشورات الحالية</h2>
+            </div>
+            
+            <div id="admin-posts-list" class="space-y-4">
+                <div class="animate-pulse text-center text-slate-500">جاري التحميل...</div>
+            </div>
+        </section>
+
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, push, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // إعدادات Firebase الخاصة بمشروعك
+        const firebaseConfig = {
+            apiKey: "AIzaSyCPMD1_8oX5WcR1ib2BTui9a05yE3ko27I",
+            databaseURL: "https://m-r-chat-hamo-default-rtdb.firebaseio.com",
+            projectId: "m-r-chat-hamo"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const postsRef = ref(db, 'posts');
+
+        window.publishPost = function() {
+            const id = document.getElementById('post-id').value;
+            const title = document.getElementById('title').value;
+            const summary = document.getElementById('summary').value;
+            const content = document.getElementById('content').value;
+
+            if(!title || !content) return alert("يرجى تعبئة الحقول الأساسية");
+
+            if(id) {
+                update(ref(db, `posts/${id}`), { title, summary, content }).then(() => {
+                    alert("تم تحديث البيانات بنجاح");
+                    cancelEdit();
+                });
+            } else {
+                const newPostRef = push(postsRef);
+                set(newPostRef, { title, summary, content, timestamp: Date.now() }).then(() => {
+                    clearInputs();
+                });
+            }
+        };
+
+        window.editPost = function(id, title, summary, content) {
+            document.getElementById('post-id').value = id;
+            document.getElementById('title').value = title;
+            document.getElementById('summary').value = summary;
+            document.getElementById('content').value = content;
+            
+            document.getElementById('form-title').innerText = "تعديل المحتوى المختار";
+            document.getElementById('submit-btn').innerText = "حفظ التعديلات ✅";
+            document.getElementById('cancel-btn').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.cancelEdit = function() {
+            clearInputs();
+            document.getElementById('post-id').value = "";
+            document.getElementById('form-title').innerText = "إضافة محتوى جديد";
+            document.getElementById('submit-btn').innerText = "نشر الآن 🚀";
+            document.getElementById('cancel-btn').classList.add('hidden');
+        };
+
+        window.deletePost = function(id) {
+            if(confirm("سيتم حذف هذا المحتوى نهائياً، هل أنت متأكد؟")) remove(ref(db, `posts/${id}`));
+        };
+
+        function clearInputs() {
+            document.querySelectorAll('input, textarea').forEach(i => i.value = "");
+        }
+
+        onValue(postsRef, (snapshot) => {
+            const list = document.getElementById('admin-posts-list');
+            list.innerHTML = "";
+            const data = snapshot.val();
+            
+            if(!data) {
+                list.innerHTML = '<p class="text-center text-slate-500 py-4">لا توجد بيانات حالياً</p>';
+                return;
+            }
+
+            Object.keys(data).reverse().forEach(id => {
+                const post = data[id];
+                list.innerHTML += `
+                    <div class="bg-slate-800/40 border border-slate-700 p-4 rounded-xl flex justify-between items-center group hover:border-cyan-500/50 transition-colors">
+                        <div class="flex-1 ml-4 overflow-hidden">
+                            <h3 class="font-medium text-cyan-100 truncate">${post.title}</h3>
+                            <p class="text-xs text-slate-500">${new Date(post.timestamp).toLocaleDateString('ar-EG')}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editPost('${id}', '${post.title.replace(/'/g, "\\'")}', '${post.summary.replace(/'/g, "\\'")}', '${post.content.replace(/'/g, "\\'")}')" 
+                                class="p-2 bg-cyan-500/10 text-cyan-400 rounded-lg border border-cyan-500/20 hover:bg-cyan-500 hover:text-white transition-all">
+                                📝
+                            </button>
+                            <button onclick="deletePost('${id}')" 
+                                class="p-2 bg-red-500/10 text-red-500 rounded-lg border border-red-500/20 hover:bg-red-500 hover:text-white transition-all">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>
